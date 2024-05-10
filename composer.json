@@ -7,9 +7,7 @@
         }
     ],
     "description": "Test task",
-    "require": {
-        "wruczek/php-file-cache": "^0.0.5"
-    },
+    "require": {},
     "autoload": {
         "psr-4": {
             "app\\": "app"
