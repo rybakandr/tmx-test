@@ -6,6 +6,6 @@ class ConfigurationHelper
 {
     public static function getByKey($key, $data)
     {
-        return isset($key, $data) ? $data[$key] : null;
+        return isset($data[$key]) ? $data[$key] : null;
     }
 }
