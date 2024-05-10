@@ -41,6 +41,9 @@ class Application
     public function run()
     {
         $autoparkData = $this->getFromConfig("autopark");
+        if(empty($autoparkData))
+            throw new \Exception("Configuration error - section \"Autopark\" is missing or empty. ".PHP_EOL." Check config files!",500);
+
         $this->fillCollection($autoparkData);
 
         $this->filters['passengers'] = InputPrompter::prompt('Passengers');
