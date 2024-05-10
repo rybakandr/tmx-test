@@ -2,13 +2,15 @@
 
 namespace app;
 
+use app\Core\FuelPriceInterface;
 use app\Core\InputPrompter;
+use app\Core\LocalFuelPriceGetter;
 use app\Core\VehicleBuilder;
 use app\Core\VehicleBuildInterface;
+use app\Helpers\ConfigurationHelper;
 use app\Models\Driver;
 use app\Models\DriverInterface;
 use app\Models\Filters\CollectionFilterIterator;
-use Wruczek\PhpFileCache\PhpFileCache;
 
 class Application
 {
@@ -18,20 +20,27 @@ class Application
 
     private DriverInterface $driver;
 
+    private FuelPriceInterface $fuelPriceGetter;
+
     private VehicleBuildInterface $builder;
 
-
-    public function __construct(private array $configuration, private PhpFileCache $cache)
+    public function __construct(private array $configuration)
     {
-        $this->cache->clearCache();
-        $this->setCachedData();
+        $this->collection = new \ArrayIterator();
+
+        $this->builder = new VehicleBuilder();
+
+        $this->initDriver();
+
+        $this->fuelPriceGetter = new LocalFuelPriceGetter($this->getConfiguration());
     }
 
+    /**
+     * Runs main interactive process - generate entities, ask for user inputs and do calculations
+     */
     public function run()
     {
-        $this->init();
-
-        $autoparkData = $this->cache->retrieve("app.config.autopark");
+        $autoparkData = $this->getFromConfig("autopark");
         $this->fillCollection($autoparkData);
 
         $this->filters['passengers'] = InputPrompter::prompt('Passengers');
@@ -45,7 +54,7 @@ class Application
         $this->printResult($calcResult);
     }
 
-    /*
+    /**
      * Populates new collection with Vehicle objects
      */
     public function fillCollection($data)
@@ -56,61 +65,38 @@ class Application
         }
     }
 
-    /*
-     * Initializes entities and components
+    /**
+     * @return array
      */
-    protected function init()
+    public function getConfiguration(): array
     {
-        $this->initDriver();
-        $this->initCollection();
-        $this->initBuilder();
+        return $this->configuration;
     }
 
-    /*
-     * Builder for creating vehicles in autopark
+    /**
+     * @param VehicleBuildInterface $builder
      */
-    protected function initBuilder()
+    public function setBuilder(VehicleBuildInterface $builder): void
     {
-        $this->builder = new VehicleBuilder();
+        $this->builder = $builder;
     }
 
-    /*
-     * New collection of vehicles
+    /**
+     * @param FuelPriceInterface $fuelPriceGetter
      */
-    protected function initCollection()
+    public function setFuelPriceGetter(FuelPriceInterface $fuelPriceGetter): void
     {
-        $this->collection = new \ArrayIterator();
+        $this->fuelPriceGetter = $fuelPriceGetter;
     }
 
-    /*
-     * Get fuel price from cache (config)
-     */
-    protected function getFuelPrice(): int
-    {
-        return (int)$this->cache->retrieve("app.config.fuelPrice");
-    }
-
-    /*
+    /**
      * Init new  driver instance with personal settings
      */
     protected function initDriver()
     {
         $this->driver = new Driver();
-        $rate = $this->cache->retrieve("app.config.mileageRate");
-        $this->driver->setKmRate($rate);
-    }
-
-    /*
-     * Writes auto park data to filecache
-     */
-    protected function setCachedData()
-    {
-        foreach ($this->configuration as $keyValue => $configValue) {
-            $cacheKey = "app.config." . $keyValue;
-            if ($this->cache->isExpired($cacheKey, true)) {
-                $this->cache->store($cacheKey, $configValue, 86400);
-            }
-        }
+        $mileageRate = (int) $this->getFromConfig("mileageRate") ?? 1;
+        $this->driver->setKmRate($mileageRate);
     }
 
     protected function calculateRoutePrice($collection)
@@ -124,7 +110,7 @@ class Application
 
             $usedFuel = $this->filters['distance'] * floatval($vehicle->getFuelConsumption() / 100);
 
-            $fuelPrice = $usedFuel * $this->getFuelPrice();
+            $fuelPrice = $usedFuel * $this->fuelPriceGetter->getPrice();
 
             $resultSet[] = [
                 'vehicleName' => $vehicle->getName(),
@@ -148,5 +134,10 @@ class Application
             }
             echo "----------------------------------------------------------" . PHP_EOL;
         }
+    }
+
+    private function getFromConfig($key)
+    {
+        return ConfigurationHelper::getByKey($key, $this->configuration);
     }
 }
