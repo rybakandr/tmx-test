@@ -1,0 +1,18 @@
+{
+    "name": "andrey/tmx",
+    "authors": [
+        {
+            "name": "Andriy Rybak",
+            "email": "arybak@artest.com"
+        }
+    ],
+    "description": "Test task",
+    "require": {
+        "wruczek/php-file-cache": "^0.0.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "app\\": "app"
+        }
+    }
+}
