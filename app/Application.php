@@ -98,7 +98,7 @@ class Application
     protected function initDriver()
     {
         $this->driver = new Driver();
-        $mileageRate = (int) $this->getFromConfig("mileageRate") ?? 1;
+        $mileageRate = 1 ?? (int)$this->getFromConfig("mileageRate");
         $this->driver->setKmRate($mileageRate);
     }
 
